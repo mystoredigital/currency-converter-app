@@ -9,12 +9,13 @@ Aplicación web moderna de conversión de divisas con tasas de cambio en tiempo 
 ## ✨ Características
 
 - 🌍 **20+ divisas disponibles** incluyendo COP, USD, EUR, HNL, MXN y más
-- 📊 **Tasas en tiempo real** desde API confiable
+- ₿ **Criptomonedas** - Bitcoin (BTC), Ethereum (ETH), Solana (SOL)
+- 📊 **Tasas en tiempo real** desde APIs confiables (ExchangeRate-API y CoinCap)
 - 🧮 **Calculadora integrada** para operaciones rápidas
 - ➕ **Panel de selección** para elegir tus divisas favoritas
 - 🎨 **Diseño moderno** con paleta teal/turquesa
 - 📱 **Responsive** - funciona en móvil, tablet y desktop
-- ⚡ **Conversión instantánea** entre todas las divisas
+- ⚡ **Conversión instantánea** entre todas las divisas y cryptos
 - 🔄 **Actualización manual** de tasas de cambio
 
 ## 🚀 Instalación Local
@@ -103,7 +104,8 @@ docker push tuusuario/currency-converter:latest
 - **Vite** - Build tool y dev server
 - **TailwindCSS** - Framework CSS
 - **Lucide React** - Iconos
-- **Exchange Rate API** - Tasas de cambio en tiempo real
+- **Exchange Rate API** - Tasas de cambio fiat en tiempo real
+- **CoinCap API** - Precios de criptomonedas en tiempo real
 
 ## 📝 Estructura del Proyecto
 
@@ -131,13 +133,22 @@ currency-converter-app/
 5. **Agregar más divisas** con el botón ➕
 6. **Actualizar tasas** con el botón 🔄
 
-## 🌐 API
+## 🌐 APIs
 
-La aplicación utiliza [ExchangeRate-API](https://www.exchangerate-api.com/) para obtener tasas de cambio actualizadas.
+La aplicación utiliza dos APIs para obtener datos en tiempo real:
+
+- **[ExchangeRate-API](https://www.exchangerate-api.com/)** - Tasas de cambio de divisas fiat
+- **[CoinCap API](https://coincap.io/)** - Precios de criptomonedas en tiempo real
+
+Ambas APIs son gratuitas y no requieren autenticación para uso básico.
 
 ## 📱 Divisas Soportadas
 
+### Monedas Fiat
 🇺🇸 USD • 🇨🇴 COP • 🇪🇺 EUR • 🇭🇳 HNL • 🇲🇽 MXN • 🇬🇧 GBP • 🇯🇵 JPY • 🇨🇳 CNY • 🇨🇦 CAD • 🇦🇺 AUD • 🇨🇭 CHF • 🇧🇷 BRL • 🇦🇷 ARS • 🇨🇱 CLP • 🇵🇪 PEN • 🇮🇳 INR • 🇰🇷 KRW • 🇹🇷 TRY • 🇷🇺 RUB • 🇸🇪 SEK
+
+### Criptomonedas
+₿ Bitcoin (BTC) • Ξ Ethereum (ETH) • ◎ Solana (SOL)
 
 ## 🤝 Contribuciones
 
