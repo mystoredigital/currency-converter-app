@@ -10,11 +10,12 @@ This is a modern, real-time currency converter web application built with React 
 
 ## Key Features
 
-- **Real-time Exchange Rates**: Fetches live currency rates from ExchangeRate-API
+- **Real-time Exchange Rates**: Fetches live currency rates from ExchangeRate-API and CoinCap API
 - **20+ Currencies**: Including COP, USD, EUR, HNL, MXN, GBP, JPY, CNY, and more
+- **Cryptocurrencies**: Bitcoin (BTC), Ethereum (ETH), and Solana (SOL) support
 - **Integrated Calculator**: Built-in calculator for each currency input
 - **Currency Selection**: Users can customize which currencies to display
-- **Auto-conversion**: Real-time conversion across all selected currencies
+- **Auto-conversion**: Real-time conversion across all selected currencies (fiat and crypto)
 - **Modern UI**: Gradient backgrounds, glassmorphism effects, custom animations
 - **Responsive Design**: Mobile-first approach with TailwindCSS
 
@@ -101,10 +102,11 @@ const [selectedCurrencies, setSelectedCurrencies] = useState(['USD', 'COP', 'EUR
 
 ## API Integration
 
-### Exchange Rate API
-- **Endpoint**: `https://api.exchangerate-api.com/v4/latest/{CURRENCY}`
+### Fiat Exchange Rate API
+- **Endpoint**: `https://api.exchangerate-api.com/v4/latest/USD`
 - **Method**: GET
 - **No Auth Required**: Free tier, no API key needed
+- **Purpose**: Fetches all fiat currency exchange rates relative to USD
 - **Response Format**:
 ```json
 {
@@ -117,12 +119,37 @@ const [selectedCurrencies, setSelectedCurrencies] = useState(['USD', 'COP', 'EUR
 }
 ```
 
+### CoinCap Cryptocurrency API
+- **Endpoint**: `https://api.coincap.io/v2/assets?ids=bitcoin,ethereum,solana`
+- **Method**: GET
+- **No Auth Required**: Free tier (30 calls/min, 10k/month)
+- **Purpose**: Fetches real-time cryptocurrency prices in USD
+- **Response Format**:
+```json
+{
+  "data": [
+    {
+      "id": "bitcoin",
+      "symbol": "BTC",
+      "priceUsd": "43250.5234"
+    },
+    ...
+  ]
+}
+```
+
 ### Rate Calculation Logic
-All conversions go through the base currency:
+All conversions are normalized through the base currency:
 ```javascript
 baseAmount = inputAmount / rates[inputCurrency]
 convertedAmount = baseAmount * rates[targetCurrency]
 ```
+
+### Cryptocurrency Integration
+- Crypto codes (BTC, ETH, SOL) are mapped to CoinCap IDs (bitcoin, ethereum, solana)
+- Crypto prices are fetched in USD and combined with fiat rates
+- Supports using crypto as base currency for conversions
+- Crypto values display 6-8 decimals (vs 2 for fiat) for precision
 
 ## Styling & Design System
 
@@ -178,10 +205,19 @@ docker-compose down
 
 ## Common Tasks for Claude
 
-### Adding a New Currency
-1. Add entry to `allCurrencies` array (lines 5-26)
+### Adding a New Fiat Currency
+1. Add entry to `allCurrencies` array (lines 5-29)
 2. Include: `{ code: 'XXX', name: 'Currency Name', flag: '🏳️' }`
 3. ExchangeRate-API automatically supports most ISO currency codes
+
+### Adding a New Cryptocurrency
+1. Add entry to `allCurrencies` array with `isCrypto: true` flag
+   - Example: `{ code: 'ADA', name: 'Cardano', flag: '₳', isCrypto: true }`
+2. Update `cryptoMap` object in `fetchRates()` function (lines 45-49)
+   - Map the crypto code to its CoinCap ID
+   - Example: `'ADA': 'cardano'`
+3. CoinCap API supports 2000+ cryptocurrencies
+4. Find CoinCap IDs at: https://api.coincap.io/v2/assets
 
 ### Modifying Calculator
 1. Update `calculatorButtons` array (lines 119-125)
@@ -240,15 +276,18 @@ If refactoring to separate components:
 ## Potential Improvements
 
 When asked to enhance the app, consider:
-- Add currency favorites/pinning
+- Add more cryptocurrencies (Cardano, Ripple, Litecoin, etc.)
+- Currency favorites/pinning
 - Local storage for selected currencies
-- Historical rate charts
+- Historical rate charts for crypto
 - Offline support with cached rates
 - Currency symbols (€, $, £, ¥)
 - Dark/light mode toggle
 - Multi-language support
-- Rate alerts/notifications
+- Rate alerts/notifications for crypto price changes
 - Copy to clipboard feature
+- Display 24h price change percentage for cryptos
+- Market cap and volume information
 
 ## Security Notes
 
@@ -279,6 +318,15 @@ When unclear about requirements:
 - Should there be a maximum number of currencies displayed?
 
 ---
+
+## Changelog
+
+### 2026-01-18 - Cryptocurrency Support
+- Added Bitcoin (BTC), Ethereum (ETH), and Solana (SOL)
+- Integrated CoinCap API for real-time crypto prices
+- Modified fetchRates() to combine fiat and crypto data
+- Updated decimal precision for crypto values (6-8 decimals)
+- Changed default selected currencies to include BTC and ETH
 
 **Last Updated**: 2026-01-18
 **Maintained By**: Yoany Andrés

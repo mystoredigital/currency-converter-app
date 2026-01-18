@@ -22,7 +22,10 @@ const CurrencyConverter = () => {
     { code: 'KRW', name: 'Won surcoreano', flag: '🇰🇷' },
     { code: 'TRY', name: 'Lira turca', flag: '🇹🇷' },
     { code: 'RUB', name: 'Rublo ruso', flag: '🇷🇺' },
-    { code: 'SEK', name: 'Corona sueca', flag: '🇸🇪' }
+    { code: 'SEK', name: 'Corona sueca', flag: '🇸🇪' },
+    { code: 'BTC', name: 'Bitcoin', flag: '₿', isCrypto: true },
+    { code: 'ETH', name: 'Ethereum', flag: 'Ξ', isCrypto: true },
+    { code: 'SOL', name: 'Solana', flag: '◎', isCrypto: true }
   ];
 
   const [rates, setRates] = useState({});
@@ -33,14 +36,60 @@ const CurrencyConverter = () => {
   const [showCalculator, setShowCalculator] = useState(null);
   const [calculatorValue, setCalculatorValue] = useState('');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [selectedCurrencies, setSelectedCurrencies] = useState(['USD', 'COP', 'EUR', 'HNL', 'MXN']);
+  const [selectedCurrencies, setSelectedCurrencies] = useState(['USD', 'COP', 'EUR', 'BTC', 'ETH']);
 
   const fetchRates = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`);
-      const data = await response.json();
-      setRates(data.rates);
+      // Map crypto codes to CoinCap IDs
+      const cryptoMap = {
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'SOL': 'solana'
+      };
+
+      const isCryptoBase = ['BTC', 'ETH', 'SOL'].includes(baseCurrency);
+
+      // Fetch fiat exchange rates
+      const fiatResponse = await fetch(`https://api.exchangerate-api.com/v4/latest/USD`);
+      const fiatData = await fiatResponse.json();
+
+      // Fetch crypto prices (in USD)
+      const cryptoIds = Object.values(cryptoMap).join(',');
+      const cryptoResponse = await fetch(`https://api.coincap.io/v2/assets?ids=${cryptoIds}`);
+      const cryptoData = await cryptoResponse.json();
+
+      // Build combined rates object
+      const combinedRates = { ...fiatData.rates };
+
+      // Add crypto rates (as price in USD)
+      cryptoData.data.forEach(crypto => {
+        const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
+        const priceInUSD = parseFloat(crypto.priceUsd);
+        combinedRates[code] = priceInUSD;
+      });
+
+      // If base currency is crypto, convert all rates relative to that crypto
+      if (isCryptoBase) {
+        const baseRate = combinedRates[baseCurrency];
+        const adjustedRates = {};
+        Object.keys(combinedRates).forEach(code => {
+          adjustedRates[code] = combinedRates[code] / baseRate;
+        });
+        setRates(adjustedRates);
+      } else if (baseCurrency !== 'USD') {
+        // If base is fiat (not USD), adjust rates
+        const baseRate = combinedRates[baseCurrency];
+        const adjustedRates = {};
+        Object.keys(combinedRates).forEach(code => {
+          adjustedRates[code] = combinedRates[code] / baseRate;
+        });
+        setRates(adjustedRates);
+      } else {
+        // Base is USD
+        setRates(combinedRates);
+      }
+
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error fetching rates:', error);
@@ -57,22 +106,25 @@ const CurrencyConverter = () => {
       setAmounts({});
       return;
     }
-    
+
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
-    
+
     if (!rates[currency]) return;
-    
+
     const newAmounts = { [currency]: value };
     const baseAmount = numValue / rates[currency];
-    
+
     allCurrencies.forEach(curr => {
       if (curr.code !== currency && rates[curr.code]) {
         const convertedValue = baseAmount * rates[curr.code];
-        newAmounts[curr.code] = convertedValue.toFixed(2);
+        // Use more decimals for crypto and when values are very small
+        const isCrypto = curr.isCrypto;
+        const decimals = isCrypto && convertedValue < 1 ? 8 : isCrypto ? 6 : 2;
+        newAmounts[curr.code] = convertedValue.toFixed(decimals);
       }
     });
-    
+
     setAmounts(newAmounts);
   };
 
