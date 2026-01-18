@@ -7,13 +7,16 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit
 
 # Copiar código fuente
 COPY . .
 
 # Build de producción
 RUN npm run build
+
+# Verificar que el build existe
+RUN ls -la /app/dist
 
 # Production stage
 FROM nginx:alpine AS production
@@ -23,6 +26,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copiar configuración de nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Verificar archivos copiados
+RUN ls -la /usr/share/nginx/html
 
 EXPOSE 80
 
