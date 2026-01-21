@@ -40,6 +40,35 @@ const CurrencyConverter = () => {
 
   const fetchRates = async () => {
     setLoading(true);
+
+    // Fallback constants - Fiat rates (Currency per USD)
+    const fallbackRates = {
+      USD: 1,
+      COP: 3935.50,
+      EUR: 0.92,
+      GBP: 0.79,
+      JPY: 148.12,
+      HNL: 24.67,
+      MXN: 17.15,
+      CNY: 7.19,
+      CAD: 1.35,
+      AUD: 1.52,
+      CHF: 0.86,
+      BRL: 4.95,
+      ARS: 823.50,
+      CLP: 925.00,
+      PEN: 3.75,
+      INR: 83.12,
+      KRW: 1335.50,
+      TRY: 30.25,
+      RUB: 88.50,
+      SEK: 10.45,
+      // Crypto rates (Crypto per USD) = 1 / Price in USD
+      BTC: 1 / 43100,
+      ETH: 1 / 2300,
+      SOL: 1 / 98.50
+    };
+
     try {
       // Map crypto codes to CoinCap IDs
       const cryptoMap = {
@@ -49,29 +78,43 @@ const CurrencyConverter = () => {
       };
 
       const isCryptoBase = ['BTC', 'ETH', 'SOL'].includes(baseCurrency);
+      let combinedRates = { ...fallbackRates }; // Start with fallbacks
 
-      // Fetch fiat exchange rates
-      const fiatResponse = await fetch(`https://api.exchangerate-api.com/v4/latest/USD`);
-      const fiatData = await fiatResponse.json();
+      try {
+        // Fetch fiat exchange rates
+        const fiatResponse = await fetch(`https://api.exchangerate-api.com/v4/latest/USD`);
+        if (fiatResponse.ok) {
+          const fiatData = await fiatResponse.json();
+          combinedRates = { ...combinedRates, ...fiatData.rates };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch fiat rates, using fallbacks', e);
+      }
 
-      // Fetch crypto prices (in USD)
-      const cryptoIds = Object.values(cryptoMap).join(',');
-      const cryptoResponse = await fetch(`https://api.coincap.io/v2/assets?ids=${cryptoIds}`);
-      const cryptoData = await cryptoResponse.json();
-
-      // Build combined rates object
-      const combinedRates = { ...fiatData.rates };
-
-      // Add crypto rates (as price in USD)
-      cryptoData.data.forEach(crypto => {
-        const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
-        const priceInUSD = parseFloat(crypto.priceUsd);
-        combinedRates[code] = priceInUSD;
-      });
+      try {
+        // Fetch crypto prices (in USD)
+        const cryptoIds = Object.values(cryptoMap).join(',');
+        const cryptoResponse = await fetch(`https://api.coincap.io/v2/assets?ids=${cryptoIds}`);
+        if (cryptoResponse.ok) {
+          const cryptoData = await cryptoResponse.json();
+          // Add crypto rates (Rates per USD)
+          cryptoData.data.forEach(crypto => {
+            const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
+            if (code) {
+              const priceInUSD = parseFloat(crypto.priceUsd);
+              if (priceInUSD > 0) {
+                combinedRates[code] = 1 / priceInUSD;
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch crypto rates, using fallbacks', e);
+      }
 
       // If base currency is crypto, convert all rates relative to that crypto
       if (isCryptoBase) {
-        const baseRate = combinedRates[baseCurrency];
+        const baseRate = combinedRates[baseCurrency] || fallbackRates[baseCurrency];
         const adjustedRates = {};
         Object.keys(combinedRates).forEach(code => {
           adjustedRates[code] = combinedRates[code] / baseRate;
@@ -79,7 +122,7 @@ const CurrencyConverter = () => {
         setRates(adjustedRates);
       } else if (baseCurrency !== 'USD') {
         // If base is fiat (not USD), adjust rates
-        const baseRate = combinedRates[baseCurrency];
+        const baseRate = combinedRates[baseCurrency] || fallbackRates[baseCurrency];
         const adjustedRates = {};
         Object.keys(combinedRates).forEach(code => {
           adjustedRates[code] = combinedRates[code] / baseRate;
@@ -92,7 +135,9 @@ const CurrencyConverter = () => {
 
       setLastUpdate(new Date());
     } catch (error) {
-      console.error('Error fetching rates:', error);
+      console.error('Critical error in rate calculation:', error);
+      // Absolute fallback
+      setRates(fallbackRates);
     }
     setLoading(false);
   };
@@ -280,7 +325,7 @@ const CurrencyConverter = () => {
           transform: scale(0.98);
         }
       `}</style>
-      
+
       <div className="bg-glow glow-1"></div>
       <div className="bg-glow glow-2"></div>
 
@@ -300,7 +345,7 @@ const CurrencyConverter = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => setShowCurrencyPicker(true)}
@@ -410,11 +455,10 @@ const CurrencyConverter = () => {
                     <button
                       key={currency.code}
                       onClick={() => toggleCurrency(currency.code)}
-                      className={`currency-picker-item w-full flex items-center justify-between p-4 rounded-xl transition-all ${
-                        selectedCurrencies.includes(currency.code)
+                      className={`currency-picker-item w-full flex items-center justify-between p-4 rounded-xl transition-all ${selectedCurrencies.includes(currency.code)
                           ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border border-teal-500/40'
                           : 'bg-black/20 border border-teal-500/10 hover:border-teal-500/20'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{currency.flag}</span>
@@ -476,13 +520,12 @@ const CurrencyConverter = () => {
                     <button
                       key={idx}
                       onClick={() => handleCalculatorButton(btn)}
-                      className={`calc-button py-4 rounded-xl text-white font-bold text-lg ${
-                        ['÷', '×', '-', '+', '='].includes(btn) 
-                          ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30' 
+                      className={`calc-button py-4 rounded-xl text-white font-bold text-lg ${['÷', '×', '-', '+', '='].includes(btn)
+                          ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30'
                           : btn === 'C' || btn === '⌫'
-                          ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40'
-                          : ''
-                      }`}
+                            ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40'
+                            : ''
+                        }`}
                     >
                       {btn}
                     </button>
