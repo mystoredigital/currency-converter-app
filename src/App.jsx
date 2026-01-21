@@ -28,11 +28,17 @@ const CurrencyConverter = () => {
     { code: 'SOL', name: 'Solana', flag: '◎', isCrypto: true }
   ];
 
-  const [rates, setRates] = useState({});
+  const [rates, setRates] = useState(() => {
+    const saved = localStorage.getItem('currency_rates');
+    return saved ? JSON.parse(saved) : {};
+  });
   const [baseCurrency, setBaseCurrency] = useState('USD');
   const [amounts, setAmounts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
+  const [loading, setLoading] = useState(!localStorage.getItem('currency_rates'));
+  const [lastUpdate, setLastUpdate] = useState(() => {
+    const saved = localStorage.getItem('last_update');
+    return saved ? new Date(saved) : null;
+  });
   const [showCalculator, setShowCalculator] = useState(null);
   const [calculatorValue, setCalculatorValue] = useState('');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -78,66 +84,53 @@ const CurrencyConverter = () => {
       };
 
       const isCryptoBase = ['BTC', 'ETH', 'SOL'].includes(baseCurrency);
-      let combinedRates = { ...fallbackRates }; // Start with fallbacks
+      let combinedRates = { ...fallbackRates, ...rates };
 
-      try {
-        // Fetch fiat exchange rates
-        const fiatResponse = await fetch(`https://api.exchangerate-api.com/v4/latest/USD`);
-        if (fiatResponse.ok) {
-          const fiatData = await fiatResponse.json();
-          combinedRates = { ...combinedRates, ...fiatData.rates };
-        }
-      } catch (e) {
-        console.warn('Failed to fetch fiat rates, using fallbacks', e);
-      }
+      // Parallel fetch
+      const [fiatResult, cryptoResult] = await Promise.allSettled([
+        fetch(`https://api.exchangerate-api.com/v4/latest/USD`).then(res => res.json()),
+        fetch(`https://api.coincap.io/v2/assets?ids=${Object.values(cryptoMap).join(',')}`).then(res => res.json())
+      ]);
 
-      try {
-        // Fetch crypto prices (in USD)
-        const cryptoIds = Object.values(cryptoMap).join(',');
-        const cryptoResponse = await fetch(`https://api.coincap.io/v2/assets?ids=${cryptoIds}`);
-        if (cryptoResponse.ok) {
-          const cryptoData = await cryptoResponse.json();
-          // Add crypto rates (Rates per USD)
-          cryptoData.data.forEach(crypto => {
-            const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
-            if (code) {
-              const priceInUSD = parseFloat(crypto.priceUsd);
-              if (priceInUSD > 0) {
-                combinedRates[code] = 1 / priceInUSD;
-              }
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to fetch crypto rates, using fallbacks', e);
-      }
-
-      // If base currency is crypto, convert all rates relative to that crypto
-      if (isCryptoBase) {
-        const baseRate = combinedRates[baseCurrency] || fallbackRates[baseCurrency];
-        const adjustedRates = {};
-        Object.keys(combinedRates).forEach(code => {
-          adjustedRates[code] = combinedRates[code] / baseRate;
-        });
-        setRates(adjustedRates);
-      } else if (baseCurrency !== 'USD') {
-        // If base is fiat (not USD), adjust rates
-        const baseRate = combinedRates[baseCurrency] || fallbackRates[baseCurrency];
-        const adjustedRates = {};
-        Object.keys(combinedRates).forEach(code => {
-          adjustedRates[code] = combinedRates[code] / baseRate;
-        });
-        setRates(adjustedRates);
+      // Process Fiat
+      if (fiatResult.status === 'fulfilled' && fiatResult.value && fiatResult.value.rates) {
+        combinedRates = { ...combinedRates, ...fiatResult.value.rates };
       } else {
-        // Base is USD
-        setRates(combinedRates);
+        console.warn('Using cached/fallback fiat rates');
       }
 
-      setLastUpdate(new Date());
+      // Process Crypto
+      if (cryptoResult.status === 'fulfilled' && cryptoResult.value && cryptoResult.value.data) {
+        cryptoResult.value.data.forEach(crypto => {
+          const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
+          if (code) {
+            const priceInUSD = parseFloat(crypto.priceUsd);
+            if (priceInUSD > 0) {
+              combinedRates[code] = 1 / priceInUSD;
+            }
+          }
+        });
+      } else {
+        console.warn('Using cached/fallback crypto rates');
+      }
+
+      // Calculate relative rates
+      const baseRate = combinedRates[baseCurrency] || fallbackRates[baseCurrency];
+      const adjustedRates = {};
+      Object.keys(combinedRates).forEach(code => {
+        adjustedRates[code] = combinedRates[code] / baseRate;
+      });
+
+      setRates(adjustedRates);
+      localStorage.setItem('currency_rates', JSON.stringify(adjustedRates));
+
+      const now = new Date();
+      setLastUpdate(now);
+      localStorage.setItem('last_update', now.toISOString());
+
     } catch (error) {
       console.error('Critical error in rate calculation:', error);
-      // Absolute fallback
-      setRates(fallbackRates);
+      if (Object.keys(rates).length === 0) setRates(fallbackRates);
     }
     setLoading(false);
   };
@@ -391,13 +384,19 @@ const CurrencyConverter = () => {
               {/* Flag and Code */}
               <div className="flex items-center gap-2 min-w-[80px]">
                 <span className="text-2xl">{currency.flag}</span>
-                <div className="text-white font-bold text-sm">
-                  {currency.code}
+                <div className="text-white font-bold text-sm flex flex-col">
+                  <span>{currency.code}</span>
+                  {/* Mobile-only Rate Display */}
+                  {rates[currency.code] && currency.code !== baseCurrency && (
+                    <span className="text-[10px] text-teal-400/80 font-mono sm:hidden">
+                      {rates[currency.code].toFixed(2)}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Input Area */}
-              <div className="flex-1 flex items-center justify-end gap-2">
+              <div className="flex-1 flex items-center justify-end gap-2 text-right">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -413,7 +412,7 @@ const CurrencyConverter = () => {
                     }
                   }}
                   placeholder="0.00"
-                  className="currency-input flex-1 min-w-0"
+                  className="currency-input flex-1 min-w-0 w-full"
                 />
                 <button
                   onClick={() => handleCalculatorClick(currency.code)}
@@ -423,9 +422,9 @@ const CurrencyConverter = () => {
                 </button>
               </div>
 
-              {/* Rate Badge - Only show if not base currency */}
+              {/* Rate Badge - Desktop Only */}
               {rates[currency.code] && currency.code !== baseCurrency && (
-                <div className="text-xs text-teal-300 font-mono min-w-[60px] text-right">
+                <div className="text-xs text-teal-300 font-mono min-w-[60px] text-right hidden sm:block">
                   {rates[currency.code].toFixed(4)}
                 </div>
               )}
@@ -456,8 +455,8 @@ const CurrencyConverter = () => {
                       key={currency.code}
                       onClick={() => toggleCurrency(currency.code)}
                       className={`currency-picker-item w-full flex items-center justify-between p-4 rounded-xl transition-all ${selectedCurrencies.includes(currency.code)
-                          ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border border-teal-500/40'
-                          : 'bg-black/20 border border-teal-500/10 hover:border-teal-500/20'
+                        ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border border-teal-500/40'
+                        : 'bg-black/20 border border-teal-500/10 hover:border-teal-500/20'
                         }`}
                     >
                       <div className="flex items-center gap-3">
@@ -521,10 +520,10 @@ const CurrencyConverter = () => {
                       key={idx}
                       onClick={() => handleCalculatorButton(btn)}
                       className={`calc-button py-4 rounded-xl text-white font-bold text-lg ${['÷', '×', '-', '+', '='].includes(btn)
-                          ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30'
-                          : btn === 'C' || btn === '⌫'
-                            ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40'
-                            : ''
+                        ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30'
+                        : btn === 'C' || btn === '⌫'
+                          ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40'
+                          : ''
                         }`}
                     >
                       {btn}
