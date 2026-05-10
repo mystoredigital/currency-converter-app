@@ -1,5 +1,80 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, TrendingUp, Calculator, Plus, Check, X, Star, Copy, ClipboardCheck, Sun, Moon } from 'lucide-react';
+import { RefreshCw, TrendingUp, Calculator, Plus, Check, X, Star, Copy, ClipboardCheck, Sun, Moon, BarChart3, Globe } from 'lucide-react';
+
+// ─── i18n ───
+const translations = {
+  es: {
+    title: 'Conversor',
+    baseCurrency: 'Moneda base',
+    selectCurrencies: 'Seleccionar divisas',
+    done: 'Listo',
+    selected: 'seleccionadas',
+    calculator: 'Calculadora',
+    apply: 'Aplicar',
+    lastUpdate: 'Última actualización',
+    history: 'Historial 7 días',
+    loading: 'Cargando...',
+    noData: 'Sin datos disponibles',
+    copy: 'Copiar',
+  },
+  en: {
+    title: 'Converter',
+    baseCurrency: 'Base currency',
+    selectCurrencies: 'Select currencies',
+    done: 'Done',
+    selected: 'selected',
+    calculator: 'Calculator',
+    apply: 'Apply',
+    lastUpdate: 'Last update',
+    history: '7-day history',
+    loading: 'Loading...',
+    noData: 'No data available',
+    copy: 'Copy',
+  }
+};
+
+// ─── Sparkline SVG ───
+const Sparkline = ({ data, width = 260, height = 80, color = '#14b8a6' }) => {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const padding = 4;
+  const w = width - padding * 2;
+  const h = height - padding * 2;
+
+  const points = data.map((val, i) => {
+    const x = padding + (i / (data.length - 1)) * w;
+    const y = padding + h - ((val - min) / range) * h;
+    return `${x},${y}`;
+  });
+
+  const isUp = data[data.length - 1] >= data[0];
+  const lineColor = isUp ? '#34d399' : '#f87171';
+  const fillId = `sparkFill-${Math.random().toString(36).slice(2)}`;
+
+  const areaPoints = `${padding},${padding + h} ${points.join(' ')} ${padding + w},${padding + h}`;
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <defs>
+        <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={lineColor} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${fillId})`} />
+      <polyline points={points.join(' ')} fill="none" stroke={lineColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Start and end dots */}
+      {points.length > 0 && (
+        <>
+          <circle cx={points[0].split(',')[0]} cy={points[0].split(',')[1]} r="3" fill={lineColor} />
+          <circle cx={points[points.length-1].split(',')[0]} cy={points[points.length-1].split(',')[1]} r="3" fill={lineColor} />
+        </>
+      )}
+    </svg>
+  );
+};
 
 const CurrencyConverter = () => {
   const allCurrencies = [
@@ -56,11 +131,79 @@ const CurrencyConverter = () => {
     return localStorage.getItem('theme') || 'dark';
   });
   const isDark = theme === 'dark';
+  const [lang, setLang] = useState(() => {
+    return localStorage.getItem('lang') || 'es';
+  });
+  const t = translations[lang];
+  const [showChart, setShowChart] = useState(null);
+  const [chartData, setChartData] = useState(null);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const toggleTheme = () => {
     const next = isDark ? 'light' : 'dark';
     setTheme(next);
     localStorage.setItem('theme', next);
+  };
+
+  const toggleLang = () => {
+    const next = lang === 'es' ? 'en' : 'es';
+    setLang(next);
+    localStorage.setItem('lang', next);
+  };
+
+  const fetchHistory = async (code) => {
+    setShowChart(code);
+    setChartData(null);
+    setChartLoading(true);
+
+    const cryptoMap = { 'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana' };
+    const isCrypto = ['BTC', 'ETH', 'SOL'].includes(code);
+
+    try {
+      if (isCrypto) {
+        const res = await fetch(`https://api.coincap.io/v2/assets/${cryptoMap[code]}/history?interval=d1`);
+        const json = await res.json();
+        if (json.data) {
+          const last7 = json.data.slice(-7);
+          setChartData({
+            values: last7.map(d => parseFloat(d.priceUsd)),
+            labels: last7.map(d => new Date(d.time).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'short', day: 'numeric' })),
+            currency: 'USD'
+          });
+        }
+      } else {
+        // Fetch last 7 days from Fawaz API using date endpoints
+        const dates = [];
+        for (let i = 7; i >= 1; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          dates.push(d.toISOString().split('T')[0]);
+        }
+        const results = await Promise.allSettled(
+          dates.map(date =>
+            fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${date}/v1/currencies/usd.json`)
+              .then(r => r.json())
+          )
+        );
+        const values = [];
+        const labels = [];
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled' && r.value && r.value.usd) {
+            const rate = r.value.usd[code.toLowerCase()];
+            if (rate) {
+              values.push(rate);
+              labels.push(new Date(dates[i]).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'short', day: 'numeric' }));
+            }
+          }
+        });
+        if (values.length >= 2) {
+          setChartData({ values, labels, currency: code });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch history:', e);
+    }
+    setChartLoading(false);
   };
 
   const fetchRates = async () => {
@@ -433,7 +576,7 @@ const CurrencyConverter = () => {
             </div>
             <div>
               <h1 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                Conversor
+                {t.title}
               </h1>
               <p className={`text-xs font-medium ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
                 {lastUpdate && lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
@@ -442,6 +585,17 @@ const CurrencyConverter = () => {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={toggleLang}
+              className={`p-2 rounded-xl transition-all border text-xs font-bold ${
+                isDark
+                  ? 'bg-teal-500/20 hover:bg-teal-500/30 border-teal-500/30 text-teal-300'
+                  : 'bg-teal-500/10 hover:bg-teal-500/20 border-teal-500/20 text-teal-600'
+              }`}
+              title={lang === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+            >
+              {lang === 'es' ? 'EN' : 'ES'}
+            </button>
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-xl transition-all border ${
@@ -488,7 +642,7 @@ const CurrencyConverter = () => {
           >
             {allCurrencies.map(curr => (
               <option key={curr.code} value={curr.code}>
-                {curr.flag} Moneda base: {curr.name} ({curr.code})
+                {curr.flag} {t.baseCurrency}: {curr.name} ({curr.code})
               </option>
             ))}
           </select>
@@ -568,6 +722,13 @@ const CurrencyConverter = () => {
                   }
                 </button>
                 <button
+                  onClick={() => fetchHistory(currency.code)}
+                  className="p-1.5 hover:bg-teal-500/20 rounded-lg transition-colors flex-shrink-0"
+                  title={t.history}
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-teal-500/50" />
+                </button>
+                <button
                   onClick={() => handleCalculatorClick(currency.code)}
                   className="p-1.5 hover:bg-teal-500/20 rounded-lg transition-colors flex-shrink-0"
                 >
@@ -595,7 +756,7 @@ const CurrencyConverter = () => {
             }`}>
               <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-teal-500/20' : 'border-teal-200'}`}>
                 <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  Seleccionar divisas
+                  {t.selectCurrencies}
                 </h3>
                 <button
                   onClick={() => setShowCurrencyPicker(false)}
@@ -644,7 +805,7 @@ const CurrencyConverter = () => {
                   onClick={() => setShowCurrencyPicker(false)}
                   className="w-full py-3 teal-gradient-btn text-white rounded-xl font-bold transition-all"
                 >
-                  Listo ({selectedCurrencies.length} seleccionadas)
+                  {t.done} ({selectedCurrencies.length} {t.selected})
                 </button>
               </div>
             </div>
@@ -662,7 +823,7 @@ const CurrencyConverter = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-bold flex items-center gap-2 text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
                   <Calculator className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-                  Calculadora
+                  {t.calculator}
                 </h3>
                 <button
                   onClick={() => setShowCalculator(null)}
@@ -705,15 +866,96 @@ const CurrencyConverter = () => {
                 onClick={applyCalculatorValue}
                 className="w-full py-3 teal-gradient-btn text-white rounded-xl font-bold transition-all text-lg"
               >
-                Aplicar
+                {t.apply}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Chart Modal */}
+        {showChart && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center p-4 z-50">
+            <div className={`rounded-t-3xl w-full max-w-md p-6 shadow-2xl border ${
+              isDark
+                ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-teal-500/30 shadow-teal-500/20'
+                : 'bg-gradient-to-b from-white to-slate-50 border-teal-500/20 shadow-teal-500/10'
+            }`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold flex items-center gap-2 text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                  <BarChart3 className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                  {(() => {
+                    const curr = allCurrencies.find(c => c.code === showChart);
+                    return curr ? `${curr.flag} ${showChart}` : showChart;
+                  })()}
+                  <span className={`text-sm font-normal ${isDark ? 'text-teal-400/60' : 'text-teal-600/50'}`}>
+                    {t.history}
+                  </span>
+                </h3>
+                <button
+                  onClick={() => { setShowChart(null); setChartData(null); }}
+                  className={`text-2xl font-light w-8 h-8 flex items-center justify-center ${isDark ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-500'}`}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className={`rounded-xl p-4 border ${isDark ? 'bg-black/40 border-teal-500/15' : 'bg-slate-50 border-teal-200'}`}>
+                {chartLoading && (
+                  <div className={`text-center py-8 text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                    {t.loading}
+                  </div>
+                )}
+                {!chartLoading && !chartData && (
+                  <div className={`text-center py-8 text-sm ${isDark ? 'text-teal-400/60' : 'text-teal-600/50'}`}>
+                    {t.noData}
+                  </div>
+                )}
+                {!chartLoading && chartData && (
+                  <div>
+                    <div className="flex justify-center mb-3">
+                      <Sparkline data={chartData.values} width={280} height={100} />
+                    </div>
+                    {/* Labels */}
+                    <div className="flex justify-between px-1">
+                      {chartData.labels.map((label, i) => (
+                        <span key={i} className={`text-[9px] font-mono ${isDark ? 'text-teal-400/50' : 'text-teal-600/40'}`}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                    {/* Min/Max */}
+                    <div className="flex justify-between mt-3 px-1">
+                      <div>
+                        <span className={`text-[10px] ${isDark ? 'text-teal-400/40' : 'text-teal-600/30'}`}>Min </span>
+                        <span className={`text-xs font-mono font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                          {Math.min(...chartData.values).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div>
+                        <span className={`text-[10px] ${isDark ? 'text-teal-400/40' : 'text-teal-600/30'}`}>Max </span>
+                        <span className={`text-xs font-mono font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                          {Math.max(...chartData.values).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div>
+                        <span className={`text-[10px] ${isDark ? 'text-teal-400/40' : 'text-teal-600/30'}`}>Δ </span>
+                        <span className={`text-xs font-mono font-semibold ${
+                          chartData.values[chartData.values.length-1] >= chartData.values[0] ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                          {((chartData.values[chartData.values.length-1] - chartData.values[0]) / chartData.values[0] * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Footer Info */}
         <div className={`mt-6 text-center text-xs ${isDark ? 'text-teal-400/60' : 'text-teal-600/50'}`}>
-          Última actualización: {lastUpdate && lastUpdate.toLocaleString('es-ES')}
+          {t.lastUpdate}: {lastUpdate && lastUpdate.toLocaleString(lang === 'es' ? 'es-ES' : 'en-US')}
         </div>
       </div>
       </div>
