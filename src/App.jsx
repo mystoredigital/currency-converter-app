@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, TrendingUp, Calculator, Plus, Check, X } from 'lucide-react';
+import { RefreshCw, TrendingUp, Calculator, Plus, Check, X, Star, Copy, ClipboardCheck, Sun, Moon } from 'lucide-react';
 
 const CurrencyConverter = () => {
   const allCurrencies = [
-    { code: 'USD', name: 'Dólar estadounidense', flag: '🇺🇸' },
-    { code: 'COP', name: 'Peso colombiano', flag: '🇨🇴' },
-    { code: 'EUR', name: 'Euro', flag: '🇪🇺' },
-    { code: 'HNL', name: 'Lempira hondureña', flag: '🇭🇳' },
-    { code: 'MXN', name: 'Peso mexicano', flag: '🇲🇽' },
-    { code: 'GBP', name: 'Libra esterlina', flag: '🇬🇧' },
-    { code: 'JPY', name: 'Yen japonés', flag: '🇯🇵' },
-    { code: 'CNY', name: 'Yuan chino', flag: '🇨🇳' },
-    { code: 'CAD', name: 'Dólar canadiense', flag: '🇨🇦' },
-    { code: 'AUD', name: 'Dólar australiano', flag: '🇦🇺' },
-    { code: 'CHF', name: 'Franco suizo', flag: '🇨🇭' },
-    { code: 'BRL', name: 'Real brasileño', flag: '🇧🇷' },
-    { code: 'ARS', name: 'Peso argentino', flag: '🇦🇷' },
-    { code: 'CLP', name: 'Peso chileno', flag: '🇨🇱' },
-    { code: 'PEN', name: 'Sol peruano', flag: '🇵🇪' },
-    { code: 'INR', name: 'Rupia india', flag: '🇮🇳' },
-    { code: 'KRW', name: 'Won surcoreano', flag: '🇰🇷' },
-    { code: 'TRY', name: 'Lira turca', flag: '🇹🇷' },
-    { code: 'RUB', name: 'Rublo ruso', flag: '🇷🇺' },
-    { code: 'SEK', name: 'Corona sueca', flag: '🇸🇪' },
-    { code: 'BTC', name: 'Bitcoin', flag: '₿', isCrypto: true },
-    { code: 'ETH', name: 'Ethereum', flag: 'Ξ', isCrypto: true },
-    { code: 'SOL', name: 'Solana', flag: '◎', isCrypto: true }
+    { code: 'USD', name: 'Dólar estadounidense', flag: '🇺🇸', symbol: '$' },
+    { code: 'COP', name: 'Peso colombiano', flag: '🇨🇴', symbol: '$' },
+    { code: 'EUR', name: 'Euro', flag: '🇪🇺', symbol: '€' },
+    { code: 'HNL', name: 'Lempira hondureña', flag: '🇭🇳', symbol: 'L' },
+    { code: 'MXN', name: 'Peso mexicano', flag: '🇲🇽', symbol: '$' },
+    { code: 'GBP', name: 'Libra esterlina', flag: '🇬🇧', symbol: '£' },
+    { code: 'JPY', name: 'Yen japonés', flag: '🇯🇵', symbol: '¥' },
+    { code: 'CNY', name: 'Yuan chino', flag: '🇨🇳', symbol: '¥' },
+    { code: 'CAD', name: 'Dólar canadiense', flag: '🇨🇦', symbol: '$' },
+    { code: 'AUD', name: 'Dólar australiano', flag: '🇦🇺', symbol: '$' },
+    { code: 'CHF', name: 'Franco suizo', flag: '🇨🇭', symbol: 'Fr' },
+    { code: 'BRL', name: 'Real brasileño', flag: '🇧🇷', symbol: 'R$' },
+    { code: 'ARS', name: 'Peso argentino', flag: '🇦🇷', symbol: '$' },
+    { code: 'CLP', name: 'Peso chileno', flag: '🇨🇱', symbol: '$' },
+    { code: 'PEN', name: 'Sol peruano', flag: '🇵🇪', symbol: 'S/' },
+    { code: 'INR', name: 'Rupia india', flag: '🇮🇳', symbol: '₹' },
+    { code: 'KRW', name: 'Won surcoreano', flag: '🇰🇷', symbol: '₩' },
+    { code: 'TRY', name: 'Lira turca', flag: '🇹🇷', symbol: '₺' },
+    { code: 'RUB', name: 'Rublo ruso', flag: '🇷🇺', symbol: '₽' },
+    { code: 'SEK', name: 'Corona sueca', flag: '🇸🇪', symbol: 'kr' },
+    { code: 'BTC', name: 'Bitcoin', flag: '₿', symbol: '₿', isCrypto: true },
+    { code: 'ETH', name: 'Ethereum', flag: 'Ξ', symbol: 'Ξ', isCrypto: true },
+    { code: 'SOL', name: 'Solana', flag: '◎', symbol: '◎', isCrypto: true }
   ];
 
   const [rates, setRates] = useState(() => {
@@ -42,7 +42,26 @@ const CurrencyConverter = () => {
   const [showCalculator, setShowCalculator] = useState(null);
   const [calculatorValue, setCalculatorValue] = useState('');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [selectedCurrencies, setSelectedCurrencies] = useState(['USD', 'COP', 'EUR', 'BTC', 'ETH']);
+  const [selectedCurrencies, setSelectedCurrencies] = useState(() => {
+    const saved = localStorage.getItem('selected_currencies');
+    return saved ? JSON.parse(saved) : ['USD', 'COP', 'EUR', 'MXN', 'HNL', 'BTC', 'ETH'];
+  });
+  const [pinnedCurrencies, setPinnedCurrencies] = useState(() => {
+    const saved = localStorage.getItem('pinned_currencies');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [cryptoChange24h, setCryptoChange24h] = useState({});
+  const [copiedCurrency, setCopiedCurrency] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'dark';
+  });
+  const isDark = theme === 'dark';
+
+  const toggleTheme = () => {
+    const next = isDark ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('theme', next);
+  };
 
   const fetchRates = async () => {
     setLoading(true);
@@ -86,21 +105,30 @@ const CurrencyConverter = () => {
       const isCryptoBase = ['BTC', 'ETH', 'SOL'].includes(baseCurrency);
       let combinedRates = { ...fallbackRates, ...rates };
 
-      // Parallel fetch
+      // Parallel fetch - Fawaz Currency API (more accurate rates) + CoinCap for crypto
       const [fiatResult, cryptoResult] = await Promise.allSettled([
-        fetch(`https://api.exchangerate-api.com/v4/latest/USD`).then(res => res.json()),
+        fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json`).then(res => res.json()),
         fetch(`https://api.coincap.io/v2/assets?ids=${Object.values(cryptoMap).join(',')}`).then(res => res.json())
       ]);
 
-      // Process Fiat
-      if (fiatResult.status === 'fulfilled' && fiatResult.value && fiatResult.value.rates) {
-        combinedRates = { ...combinedRates, ...fiatResult.value.rates };
+      // Process Fiat - Fawaz API returns { usd: { cop: 3750, eur: 0.92, ... } }
+      if (fiatResult.status === 'fulfilled' && fiatResult.value && fiatResult.value.usd) {
+        const fawazRates = fiatResult.value.usd;
+        Object.keys(fawazRates).forEach(key => {
+          const upperKey = key.toUpperCase();
+          // Only update currencies we know about (skip crypto codes, Fawaz doesn't have them)
+          if (!['BTC', 'ETH', 'SOL'].includes(upperKey) && allCurrencies.some(c => c.code === upperKey)) {
+            combinedRates[upperKey] = fawazRates[key];
+          }
+        });
+        combinedRates['USD'] = 1; // Ensure USD base is 1
       } else {
         console.warn('Using cached/fallback fiat rates');
       }
 
       // Process Crypto
       if (cryptoResult.status === 'fulfilled' && cryptoResult.value && cryptoResult.value.data) {
+        const change24h = {};
         cryptoResult.value.data.forEach(crypto => {
           const code = Object.keys(cryptoMap).find(k => cryptoMap[k] === crypto.id);
           if (code) {
@@ -108,8 +136,12 @@ const CurrencyConverter = () => {
             if (priceInUSD > 0) {
               combinedRates[code] = 1 / priceInUSD;
             }
+            if (crypto.changePercent24Hr) {
+              change24h[code] = parseFloat(crypto.changePercent24Hr);
+            }
           }
         });
+        setCryptoChange24h(change24h);
       } else {
         console.warn('Using cached/fallback crypto rates');
       }
@@ -197,13 +229,44 @@ const CurrencyConverter = () => {
   };
 
   const toggleCurrency = (code) => {
+    let updated;
     if (selectedCurrencies.includes(code)) {
       if (selectedCurrencies.length > 1) {
-        setSelectedCurrencies(selectedCurrencies.filter(c => c !== code));
+        updated = selectedCurrencies.filter(c => c !== code);
+        // Also unpin if removed
+        const updatedPins = pinnedCurrencies.filter(c => c !== code);
+        setPinnedCurrencies(updatedPins);
+        localStorage.setItem('pinned_currencies', JSON.stringify(updatedPins));
+      } else {
+        return;
       }
     } else {
-      setSelectedCurrencies([...selectedCurrencies, code]);
+      updated = [...selectedCurrencies, code];
     }
+    setSelectedCurrencies(updated);
+    localStorage.setItem('selected_currencies', JSON.stringify(updated));
+  };
+
+  const togglePin = (code) => {
+    let updated;
+    if (pinnedCurrencies.includes(code)) {
+      updated = pinnedCurrencies.filter(c => c !== code);
+    } else {
+      updated = [...pinnedCurrencies, code];
+    }
+    setPinnedCurrencies(updated);
+    localStorage.setItem('pinned_currencies', JSON.stringify(updated));
+  };
+
+  const copyToClipboard = (code) => {
+    const value = amounts[code];
+    if (!value) return;
+    const currency = allCurrencies.find(c => c.code === code);
+    const text = `${currency.symbol}${value} ${code}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCurrency(code);
+      setTimeout(() => setCopiedCurrency(null), 1500);
+    });
   };
 
   const calculatorButtons = [
@@ -214,98 +277,136 @@ const CurrencyConverter = () => {
     ['C', '⌫', '', '']
   ];
 
-  const displayCurrencies = allCurrencies.filter(c => selectedCurrencies.includes(c.code));
+  const displayCurrencies = allCurrencies
+    .filter(c => selectedCurrencies.includes(c.code))
+    .sort((a, b) => {
+      const aPinned = pinnedCurrencies.includes(a.code);
+      const bPinned = pinnedCurrencies.includes(b.code);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
+    });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-teal-950 to-slate-900 p-4 font-sans relative overflow-hidden">
+    <div className={`min-h-screen p-4 font-sans relative overflow-hidden transition-colors duration-300 ${
+      isDark
+        ? 'bg-gradient-to-br from-slate-950 via-teal-950 to-slate-900'
+        : 'bg-gradient-to-br from-slate-50 via-teal-50 to-white'
+    }`}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
-        
+
         body {
           font-family: 'Outfit', sans-serif;
         }
-        
+
         .bg-glow {
           position: fixed;
           width: 600px;
           height: 600px;
           border-radius: 50%;
           filter: blur(120px);
-          opacity: 0.3;
           pointer-events: none;
         }
-        
+
+        .theme-dark .bg-glow { opacity: 0.3; }
+        .theme-light .bg-glow { opacity: 0.15; }
+
         .glow-1 {
           background: radial-gradient(circle, #14b8a6 0%, transparent 70%);
           top: -200px;
           right: -200px;
         }
-        
+
         .glow-2 {
           background: radial-gradient(circle, #0d9488 0%, transparent 70%);
           bottom: -200px;
           left: -200px;
         }
-        
-        .currency-row {
+
+        .theme-dark .currency-row {
           backdrop-filter: blur(20px);
           background: linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(13, 148, 136, 0.05) 100%);
           border: 1px solid rgba(20, 184, 166, 0.15);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
-        
-        .currency-row:hover {
+        .theme-dark .currency-row:hover {
           transform: translateY(-1px);
           background: linear-gradient(135deg, rgba(20, 184, 166, 0.12) 0%, rgba(13, 148, 136, 0.08) 100%);
           border-color: rgba(20, 184, 166, 0.3);
           box-shadow: 0 8px 24px rgba(20, 184, 166, 0.2);
         }
-        
+
+        .theme-light .currency-row {
+          backdrop-filter: blur(20px);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(240, 253, 250, 0.6) 100%);
+          border: 1px solid rgba(20, 184, 166, 0.2);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        .theme-light .currency-row:hover {
+          transform: translateY(-1px);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 253, 250, 0.8) 100%);
+          border-color: rgba(20, 184, 166, 0.4);
+          box-shadow: 0 4px 16px rgba(20, 184, 166, 0.12);
+        }
+
+        .currency-row {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .currency-input {
           background: transparent;
           border: none;
-          color: white;
           font-family: 'JetBrains Mono', monospace;
           font-size: 1.25rem;
           font-weight: 600;
           text-align: right;
         }
-        
+        .theme-dark .currency-input { color: white; }
+        .theme-light .currency-input { color: #0f172a; }
+
         .currency-input:focus {
           outline: none;
         }
-        
-        .calc-button {
+
+        .theme-dark .calc-button {
           background: rgba(20, 184, 166, 0.1);
           border: 1px solid rgba(20, 184, 166, 0.2);
-          transition: all 0.15s;
         }
-        
-        .calc-button:hover {
+        .theme-dark .calc-button:hover {
           background: rgba(20, 184, 166, 0.2);
           border-color: rgba(20, 184, 166, 0.3);
         }
-        
+        .theme-light .calc-button {
+          background: rgba(20, 184, 166, 0.08);
+          border: 1px solid rgba(20, 184, 166, 0.15);
+        }
+        .theme-light .calc-button:hover {
+          background: rgba(20, 184, 166, 0.15);
+          border-color: rgba(20, 184, 166, 0.3);
+        }
+
+        .calc-button {
+          transition: all 0.15s;
+        }
         .calc-button:active {
           transform: scale(0.95);
-          background: rgba(20, 184, 166, 0.25);
         }
-        
+
         .refresh-spin {
           animation: spin 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        
+
         .teal-gradient-btn {
           background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
           box-shadow: 0 4px 20px rgba(20, 184, 166, 0.4);
         }
-        
+
         .teal-gradient-btn:hover {
           box-shadow: 0 6px 30px rgba(20, 184, 166, 0.5);
         }
@@ -319,6 +420,7 @@ const CurrencyConverter = () => {
         }
       `}</style>
 
+      <div className={`theme-${theme}`}>
       <div className="bg-glow glow-1"></div>
       <div className="bg-glow glow-2"></div>
 
@@ -330,10 +432,10 @@ const CurrencyConverter = () => {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">
+              <h1 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>
                 Conversor
               </h1>
-              <p className="text-teal-400 text-xs font-medium">
+              <p className={`text-xs font-medium ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
                 {lastUpdate && lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -341,8 +443,22 @@ const CurrencyConverter = () => {
 
           <div className="flex gap-2">
             <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl transition-all border ${
+                isDark
+                  ? 'bg-teal-500/20 hover:bg-teal-500/30 border-teal-500/30 text-teal-300'
+                  : 'bg-teal-500/10 hover:bg-teal-500/20 border-teal-500/20 text-teal-600'
+              }`}
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
               onClick={() => setShowCurrencyPicker(true)}
-              className="p-2 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/30 text-teal-300 rounded-xl transition-all"
+              className={`p-2 rounded-xl transition-all border ${
+                isDark
+                  ? 'bg-teal-500/20 hover:bg-teal-500/30 border-teal-500/30 text-teal-300'
+                  : 'bg-teal-500/10 hover:bg-teal-500/20 border-teal-500/20 text-teal-600'
+              }`}
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -364,7 +480,11 @@ const CurrencyConverter = () => {
               setBaseCurrency(e.target.value);
               setAmounts({});
             }}
-            className="w-full px-4 py-2.5 bg-black/40 backdrop-blur-xl border border-teal-500/30 text-white text-sm rounded-xl focus:outline-none focus:border-teal-400 transition-colors"
+            className={`w-full px-4 py-2.5 backdrop-blur-xl border text-sm rounded-xl focus:outline-none focus:border-teal-400 transition-colors ${
+              isDark
+                ? 'bg-black/40 border-teal-500/30 text-white'
+                : 'bg-white/60 border-teal-500/20 text-slate-800'
+            }`}
           >
             {allCurrencies.map(curr => (
               <option key={curr.code} value={curr.code}>
@@ -381,14 +501,36 @@ const CurrencyConverter = () => {
               key={currency.code}
               className="currency-row rounded-xl p-3 flex items-center gap-3"
             >
-              {/* Flag and Code */}
-              <div className="flex items-center gap-2 min-w-[80px]">
+              {/* Pin / Flag and Code */}
+              <div className="flex items-center gap-2 min-w-[100px]">
+                <button
+                  onClick={() => togglePin(currency.code)}
+                  className="flex-shrink-0 p-0.5 transition-colors"
+                >
+                  <Star className={`w-3.5 h-3.5 ${
+                    pinnedCurrencies.includes(currency.code)
+                      ? 'text-amber-400 fill-amber-400'
+                      : 'text-teal-600 hover:text-teal-400'
+                  }`} />
+                </button>
                 <span className="text-2xl">{currency.flag}</span>
-                <div className="text-white font-bold text-sm flex flex-col">
-                  <span>{currency.code}</span>
+                <div className={`font-bold text-sm flex flex-col ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                  <span className="flex items-center gap-1.5">
+                    {currency.code}
+                    {/* 24h Change Badge for Crypto */}
+                    {currency.isCrypto && cryptoChange24h[currency.code] !== undefined && (
+                      <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md ${
+                        cryptoChange24h[currency.code] >= 0
+                          ? 'text-emerald-400 bg-emerald-500/15'
+                          : 'text-red-400 bg-red-500/15'
+                      }`}>
+                        {cryptoChange24h[currency.code] >= 0 ? '▲' : '▼'} {Math.abs(cryptoChange24h[currency.code]).toFixed(1)}%
+                      </span>
+                    )}
+                  </span>
                   {/* Mobile-only Rate Display */}
                   {rates[currency.code] && currency.code !== baseCurrency && (
-                    <span className="text-[10px] text-teal-400/80 font-mono sm:hidden">
+                    <span className={`text-[10px] font-mono sm:hidden ${isDark ? 'text-teal-400/80' : 'text-teal-600/70'}`}>
                       {rates[currency.code].toFixed(2)}
                     </span>
                   )}
@@ -397,6 +539,7 @@ const CurrencyConverter = () => {
 
               {/* Input Area */}
               <div className="flex-1 flex items-center justify-end gap-2 text-right">
+                <span className="text-teal-500/60 text-sm font-mono flex-shrink-0">{currency.symbol}</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -415,6 +558,16 @@ const CurrencyConverter = () => {
                   className="currency-input flex-1 min-w-0 w-full"
                 />
                 <button
+                  onClick={() => copyToClipboard(currency.code)}
+                  className="p-1.5 hover:bg-teal-500/20 rounded-lg transition-colors flex-shrink-0"
+                  title="Copiar"
+                >
+                  {copiedCurrency === currency.code
+                    ? <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    : <Copy className="w-3.5 h-3.5 text-teal-500/50" />
+                  }
+                </button>
+                <button
                   onClick={() => handleCalculatorClick(currency.code)}
                   className="p-1.5 hover:bg-teal-500/20 rounded-lg transition-colors flex-shrink-0"
                 >
@@ -424,7 +577,7 @@ const CurrencyConverter = () => {
 
               {/* Rate Badge - Desktop Only */}
               {rates[currency.code] && currency.code !== baseCurrency && (
-                <div className="text-xs text-teal-300 font-mono min-w-[60px] text-right hidden sm:block">
+                <div className={`text-xs font-mono min-w-[60px] text-right hidden sm:block ${isDark ? 'text-teal-300' : 'text-teal-600'}`}>
                   {rates[currency.code].toFixed(4)}
                 </div>
               )}
@@ -435,14 +588,18 @@ const CurrencyConverter = () => {
         {/* Currency Picker Modal */}
         {showCurrencyPicker && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center p-4 z-50">
-            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-teal-500/30 rounded-t-3xl w-full max-w-md shadow-2xl shadow-teal-500/20 max-h-[80vh] flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b border-teal-500/20">
-                <h3 className="text-white font-bold text-lg">
+            <div className={`rounded-t-3xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col border ${
+              isDark
+                ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-teal-500/30 shadow-teal-500/20'
+                : 'bg-gradient-to-b from-white to-slate-50 border-teal-500/20 shadow-teal-500/10'
+            }`}>
+              <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-teal-500/20' : 'border-teal-200'}`}>
+                <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
                   Seleccionar divisas
                 </h3>
                 <button
                   onClick={() => setShowCurrencyPicker(false)}
-                  className="text-teal-400 hover:text-teal-300 text-2xl font-light w-8 h-8 flex items-center justify-center"
+                  className={`text-2xl font-light w-8 h-8 flex items-center justify-center ${isDark ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-500'}`}
                 >
                   ✕
                 </button>
@@ -455,30 +612,34 @@ const CurrencyConverter = () => {
                       key={currency.code}
                       onClick={() => toggleCurrency(currency.code)}
                       className={`currency-picker-item w-full flex items-center justify-between p-4 rounded-xl transition-all ${selectedCurrencies.includes(currency.code)
-                        ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border border-teal-500/40'
-                        : 'bg-black/20 border border-teal-500/10 hover:border-teal-500/20'
+                        ? isDark
+                          ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 border border-teal-500/40'
+                          : 'bg-gradient-to-r from-teal-50 to-teal-100 border border-teal-300'
+                        : isDark
+                          ? 'bg-black/20 border border-teal-500/10 hover:border-teal-500/20'
+                          : 'bg-white/50 border border-slate-200 hover:border-teal-300'
                         }`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{currency.flag}</span>
                         <div className="text-left">
-                          <div className="text-white font-semibold text-sm">
+                          <div className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-800'}`}>
                             {currency.code}
                           </div>
-                          <div className="text-teal-300 text-xs">
+                          <div className={`text-xs ${isDark ? 'text-teal-300' : 'text-teal-600'}`}>
                             {currency.name}
                           </div>
                         </div>
                       </div>
                       {selectedCurrencies.includes(currency.code) && (
-                        <Check className="w-5 h-5 text-teal-400" />
+                        <Check className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
                       )}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="p-4 border-t border-teal-500/20">
+              <div className={`p-4 border-t ${isDark ? 'border-teal-500/20' : 'border-teal-200'}`}>
                 <button
                   onClick={() => setShowCurrencyPicker(false)}
                   className="w-full py-3 teal-gradient-btn text-white rounded-xl font-bold transition-all"
@@ -493,22 +654,28 @@ const CurrencyConverter = () => {
         {/* Calculator Modal */}
         {showCalculator && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center p-4 z-50">
-            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-teal-500/30 rounded-t-3xl w-full max-w-md p-6 shadow-2xl shadow-teal-500/20">
+            <div className={`rounded-t-3xl w-full max-w-md p-6 shadow-2xl border ${
+              isDark
+                ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-teal-500/30 shadow-teal-500/20'
+                : 'bg-gradient-to-b from-white to-slate-50 border-teal-500/20 shadow-teal-500/10'
+            }`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold flex items-center gap-2 text-lg">
-                  <Calculator className="w-5 h-5 text-teal-400" />
+                <h3 className={`font-bold flex items-center gap-2 text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                  <Calculator className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
                   Calculadora
                 </h3>
                 <button
                   onClick={() => setShowCalculator(null)}
-                  className="text-teal-400 hover:text-teal-300 text-2xl font-light w-8 h-8 flex items-center justify-center"
+                  className={`text-2xl font-light w-8 h-8 flex items-center justify-center ${isDark ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-500'}`}
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="bg-black/60 border border-teal-500/20 rounded-xl p-4 mb-4">
-                <div className="text-right text-3xl text-teal-100 font-mono h-12 overflow-x-auto">
+              <div className={`rounded-xl p-4 mb-4 border ${
+                isDark ? 'bg-black/60 border-teal-500/20' : 'bg-slate-100 border-teal-200'
+              }`}>
+                <div className={`text-right text-3xl font-mono h-12 overflow-x-auto ${isDark ? 'text-teal-100' : 'text-slate-800'}`}>
                   {calculatorValue || '0'}
                 </div>
               </div>
@@ -519,10 +686,12 @@ const CurrencyConverter = () => {
                     <button
                       key={idx}
                       onClick={() => handleCalculatorButton(btn)}
-                      className={`calc-button py-4 rounded-xl text-white font-bold text-lg ${['÷', '×', '-', '+', '='].includes(btn)
-                        ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30'
+                      className={`calc-button py-4 rounded-xl font-bold text-lg ${
+                        isDark ? 'text-white' : 'text-slate-700'
+                      } ${['÷', '×', '-', '+', '='].includes(btn)
+                        ? 'bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 shadow-lg shadow-teal-500/30 !text-white'
                         : btn === 'C' || btn === '⌫'
-                          ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40'
+                          ? 'bg-red-500/30 hover:bg-red-500/50 border-red-500/40 !text-white'
                           : ''
                         }`}
                     >
@@ -543,9 +712,10 @@ const CurrencyConverter = () => {
         )}
 
         {/* Footer Info */}
-        <div className="mt-6 text-center text-xs text-teal-400/60">
+        <div className={`mt-6 text-center text-xs ${isDark ? 'text-teal-400/60' : 'text-teal-600/50'}`}>
           Última actualización: {lastUpdate && lastUpdate.toLocaleString('es-ES')}
         </div>
+      </div>
       </div>
     </div>
   );
